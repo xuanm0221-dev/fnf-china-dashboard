@@ -75,7 +75,7 @@ export default function BrandDashboard({ brandId }: { brandId: string }) {
         // 사용 가능한 월 추출
         const months = Array.from(
           new Set(brandData.map((d: CostData) => d.연월))
-        ).sort();
+        ).sort() as string[];
         setAvailableMonths(months);
       } else {
         console.error('Failed to load cost data');
