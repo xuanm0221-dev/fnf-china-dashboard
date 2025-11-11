@@ -1,0 +1,46 @@
+Traceback (most recent call last):
+  File "C:\Users\AD0815\hmcursor\final_convert.py", line 4, in <module>
+    import pandas as pd
+  File "C:\Users\AD0815\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\__init__.py", line 62, in <module>
+    from pandas.core.api import (
+    ...<62 lines>...
+    )
+  File "C:\Users\AD0815\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\core\api.py", line 47, in <module>
+    from pandas.core.groupby import (
+    ...<2 lines>...
+    )
+  File "C:\Users\AD0815\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\core\groupby\__init__.py", line 1, in <module>
+    from pandas.core.groupby.generic import (
+    ...<3 lines>...
+    )
+  File "C:\Users\AD0815\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\core\groupby\generic.py", line 68, in <module>
+    from pandas.core.frame import DataFrame
+  File "C:\Users\AD0815\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\core\frame.py", line 149, in <module>
+    from pandas.core.generic import (
+    ...<2 lines>...
+    )
+  File "C:\Users\AD0815\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\core\generic.py", line 152, in <module>
+    from pandas.core import (
+    ...<7 lines>...
+    )
+  File "C:\Users\AD0815\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\core\indexing.py", line 79, in <module>
+    from pandas.core.indexes.api import (
+    ...<2 lines>...
+    )
+  File "C:\Users\AD0815\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\core\indexes\api.py", line 20, in <module>
+    from pandas.core.indexes.base import (
+    ...<5 lines>...
+    )
+  File "C:\Users\AD0815\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\core\indexes\base.py", line 151, in <module>
+    from pandas.core.array_algos.putmask import (
+    ...<2 lines>...
+    )
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1322, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1262, in _find_spec
+  File "<frozen importlib._bootstrap_external>", line 1559, in find_spec
+  File "<frozen importlib._bootstrap_external>", line 1533, in _get_spec
+  File "<frozen importlib._bootstrap_external>", line 1632, in find_spec
+  File "<frozen importlib._bootstrap_external>", line 152, in _path_stat
+KeyboardInterrupt
+^C
