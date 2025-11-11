@@ -195,7 +195,7 @@ export default function Home() {
                 )}
 
                 {/* 전체 대시보드 보기 버튼 */}
-                <Link href={`/dashboard/${brand.id}`}>
+                <Link href={brand.id === 'mlb' ? '/dashboard/mlb-analysis' : `/dashboard/${brand.id}`}>
                   <button className={`w-full py-3 px-4 bg-gradient-to-r ${brand.color} text-white font-bold rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105`}>
                     전체 대시보드 보기
                   </button>
