@@ -62,7 +62,7 @@ export default function MLB2025Analysis() {
 
   const loadData = async () => {
     try {
-      const response = await fetch('/data/mlb_china_data.json');
+      const response = await fetch('/api/mlb-data');
       if (response.ok) {
         const jsonData: MLBData[] = await response.json();
         
@@ -70,6 +70,8 @@ export default function MLB2025Analysis() {
         const data2025 = jsonData.filter(d => d.년도 === 2025);
         setData(data2025);
         processChartData(jsonData, data2025);
+      } else {
+        console.error('데이터 로딩 실패:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('데이터 로딩 실패:', error);
