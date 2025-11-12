@@ -2,10 +2,12 @@ import BrandDashboard from '@/components/BrandDashboard';
 
 export default function DashboardPage({
   params,
+  searchParams,
 }: {
   params: { brandId: string };
+  searchParams: { month?: string };
 }) {
-  return <BrandDashboard brandId={params.brandId} />;
+  return <BrandDashboard brandId={params.brandId} initialMonth={searchParams.month} />;
 }
 
 export function generateStaticParams() {

@@ -11,6 +11,9 @@ import {
   Legend,
   ResponsiveContainer,
   Cell,
+  ComposedChart,
+  Line,
+  ReferenceLine,
 } from 'recharts';
 import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
@@ -34,18 +37,18 @@ interface CategoryStats {
   color: string;
 }
 
-// 대분류별 색상 매핑 (세련된 톤다운 팔레트)
+// 대분류별 색상 매핑 (밝은 파스텔 팔레트)
 const CATEGORY_COLORS: { [key: string]: string } = {
-  '인건비': '#7C9CBF',          // 부드러운 블루
-  '광고선전비': '#E69A99',      // 차분한 코랄
-  '기타': '#D4C5A9',            // 베이지 골드
-  '지급수수료': '#9BB19C',      // 세이지 그린
-  '사가상각비(시설)': '#B4A5C7', // 라벤더 그레이
-  'VMD/매장부수대': '#D4A5A5',  // 더스티 로즈
-  '샘플비(제작/구입)': '#C9B18F', // 샌드 베이지
-  '복리후생비': '#8FB0B0',      // 더스티 틸
-  '출장비': '#A8A4C7',          // 퍼플 그레이
-  '감가상각비': '#9CADA4',      // 민트 그레이
+  '인건비': '#A8DADC',          // 밝은 민트 블루
+  '광고선전비': '#FFD93D',      // 노란색
+  '기타': '#FFE4B5',            // 피치 파스텔
+  '지급수수료': '#C7CEEA',      // 라벤더 블루
+  '사가상각비(시설)': '#E0BBE4', // 연보라 파스텔
+  'VMD/매장부수대': '#FEC8D8',  // 로즈 파스텔
+  '샘플비(제작/구입)': '#FFDAB9', // 아프리콧 파스텔
+  '복리후생비': '#B4E7CE',      // 민트 그린
+  '출장비': '#D4A5F8',          // 퍼플 파스텔
+  '감가상각비': '#C1E1C1',      // 세이지 파스텔
 };
 
 export default function MLB2025Analysis() {
@@ -213,21 +216,21 @@ export default function MLB2025Analysis() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4">
+      <header className="bg-gradient-to-r from-pink-100 via-purple-100 to-blue-100 border-b-4 border-white shadow-lg">
+        <div className="container mx-auto px-4 py-5">
           <div className="flex items-center space-x-4">
             <Link
               href="/"
-              className="flex items-center space-x-2 text-slate-600 hover:text-slate-900 transition-colors"
+              className="flex items-center space-x-2 bg-white/80 px-4 py-2 rounded-full hover:bg-white transition-all shadow-sm hover:shadow-md"
             >
-              <ArrowLeft className="w-5 h-5" />
-              <span className="hidden sm:inline">돌아가기</span>
+              <ArrowLeft className="w-5 h-5 text-purple-500" />
+              <span className="hidden sm:inline font-semibold text-purple-700">돌아가기</span>
             </Link>
-            <div className="h-6 w-px bg-slate-300" />
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-800">
-              MLB 2025년 비용 분석
+            <div className="h-8 w-px bg-purple-200" />
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
+              MLB 2025년 비용 분석 ✨
             </h1>
           </div>
         </div>
@@ -237,11 +240,14 @@ export default function MLB2025Analysis() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 왼쪽: 차트 */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl p-6 shadow-md border border-slate-200">
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl p-8 shadow-xl border border-slate-100">
+              <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-800">2025년 월별 비용 분석</h2>
-                  <div className="text-xs text-slate-500 mt-1">
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
+                    2025년 월별 비용 분석 📊
+                  </h2>
+                  <div className="text-xs text-purple-600 mt-2 flex items-center gap-1 font-medium">
+                    <span className="inline-block w-2 h-2 bg-pink-400 rounded-full animate-pulse"></span>
                     막대를 클릭하면 월별 YOY를 확인할 수 있습니다
                   </div>
                 </div>
@@ -249,26 +255,27 @@ export default function MLB2025Analysis() {
 
               {/* 선택된 월 정보 */}
               {selectedMonth !== null && chartData.find(d => d.monthNum === selectedMonth) && (
-                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="mb-6 p-5 bg-gradient-to-r from-blue-50 via-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl shadow-sm">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-bold text-blue-900">
+                    <div className="space-y-1">
+                      <div className="text-sm font-bold text-blue-900 flex items-center gap-2">
+                        <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
                         2025년 {selectedMonth}월
                       </div>
-                      <div className="text-xs text-blue-700 mt-1">
-                        총비용: {formatCurrency(chartData.find(d => d.monthNum === selectedMonth)?.total2025 || 0)}
+                      <div className="text-xs text-blue-800 ml-3.5 font-medium">
+                        총비용: <span className="text-blue-900 font-bold">{formatCurrency(chartData.find(d => d.monthNum === selectedMonth)?.total2025 || 0)}</span>
                       </div>
-                      <div className="text-xs text-blue-700">
-                        전년: {formatCurrency(chartData.find(d => d.monthNum === selectedMonth)?.total2024 || 0)}
+                      <div className="text-xs text-blue-700 ml-3.5">
+                        전년: <span className="font-semibold">{formatCurrency(chartData.find(d => d.monthNum === selectedMonth)?.total2024 || 0)}</span>
                       </div>
                     </div>
-                    <div className={`text-right ${
+                    <div className={`text-right px-4 py-2 rounded-lg ${
                       (chartData.find(d => d.monthNum === selectedMonth)?.yoy || 0) >= 0 
-                        ? 'text-green-600' 
-                        : 'text-red-600'
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-red-100 text-red-700'
                     }`}>
-                      <div className="text-xs">YOY</div>
-                      <div className="text-2xl font-bold">
+                      <div className="text-xs font-medium opacity-75">YOY</div>
+                      <div className="text-3xl font-black">
                         {formatYOY(chartData.find(d => d.monthNum === selectedMonth)?.yoy || 0)}
                       </div>
                     </div>
@@ -276,8 +283,8 @@ export default function MLB2025Analysis() {
                 </div>
               )}
 
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart 
+              <ResponsiveContainer width="100%" height={500}>
+                <ComposedChart 
                   data={chartData}
                   onClick={(data) => {
                     if (data && data.activePayload && data.activePayload[0]) {
@@ -285,53 +292,160 @@ export default function MLB2025Analysis() {
                       setSelectedMonth(monthNum === selectedMonth ? null : monthNum);
                     }
                   }}
+                  margin={{ top: 30, right: 50, left: 10, bottom: 10 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <defs>
+                    {/* 그리드 배경 그라데이션 */}
+                    <linearGradient id="gridGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#f1f5f9" stopOpacity={0.8}/>
+                      <stop offset="100%" stopColor="#f8fafc" stopOpacity={0.2}/>
+                    </linearGradient>
+                    
+                    {/* 각 카테고리별 그라데이션 정의 */}
+                    {categoryStats.map((category) => {
+                      const gradientId = `gradient-${category.name.replace(/[^a-zA-Z0-9]/g, '')}`;
+                      const baseColor = category.color;
+                      return (
+                        <linearGradient key={gradientId} id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={baseColor} stopOpacity={1}/>
+                          <stop offset="100%" stopColor={baseColor} stopOpacity={0.8}/>
+                        </linearGradient>
+                      );
+                    })}
+                    
+                    {/* 호버 효과를 위한 필터 */}
+                    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+                      <feOffset dx="0" dy="2" result="offsetblur"/>
+                      <feComponentTransfer>
+                        <feFuncA type="linear" slope="0.3"/>
+                      </feComponentTransfer>
+                      <feMerge>
+                        <feMergeNode/>
+                        <feMergeNode in="SourceGraphic"/>
+                      </feMerge>
+                    </filter>
+                  </defs>
+                  <CartesianGrid 
+                    strokeDasharray="3 3" 
+                    stroke="#e0b0ff" 
+                    strokeOpacity={0.2}
+                    vertical={false}
+                  />
                   <XAxis 
                     dataKey="month" 
-                    stroke="#64748b"
-                    style={{ fontSize: '12px' }}
+                    stroke="#94a3b8"
+                    style={{ 
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      fill: '#64748b'
+                    }}
+                    axisLine={{ stroke: '#e2e8f0', strokeWidth: 2 }}
+                    tickLine={false}
                   />
                   <YAxis 
+                    yAxisId="left"
                     stroke="#64748b"
-                    style={{ fontSize: '12px' }}
+                    style={{ 
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      fill: '#64748b'
+                    }}
                     tickFormatter={formatCurrency}
+                    axisLine={false}
+                    tickLine={false}
+                    label={{ value: '비용 (천위안)', angle: -90, position: 'insideLeft', style: { fill: '#64748b', fontSize: '12px' } }}
+                  />
+                  <YAxis 
+                    yAxisId="right"
+                    orientation="right"
+                    stroke="#ef4444"
+                    style={{ 
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      fill: '#ef4444'
+                    }}
+                    tickFormatter={(value) => `${value}%`}
+                    axisLine={false}
+                    tickLine={false}
+                    domain={[0, 150]}
+                    label={{ value: 'YOY (%)', angle: 90, position: 'insideRight', style: { fill: '#ef4444', fontSize: '12px' } }}
                   />
                   <Tooltip 
                     contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '12px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                      border: '3px solid',
+                      borderImage: 'linear-gradient(135deg, #ec4899, #8b5cf6, #3b82f6) 1',
+                      borderRadius: '16px',
+                      fontSize: '13px',
+                      boxShadow: '0 20px 60px rgba(147, 51, 234, 0.25)',
+                      padding: '14px 18px',
+                      fontWeight: '600'
                     }}
                     formatter={(value: any, name: string) => {
                       return [formatCurrency(value), name];
                     }}
+                    cursor={{ fill: 'rgba(236, 72, 153, 0.1)', radius: 10 }}
+                    wrapperStyle={{ outline: 'none' }}
                   />
                   <Legend 
-                    wrapperStyle={{ fontSize: '11px' }}
+                    wrapperStyle={{ 
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      paddingTop: '20px'
+                    }}
                     iconType="circle"
+                    iconSize={10}
+                  />
+
+                  {/* 100% 기준선 */}
+                  <ReferenceLine 
+                    yAxisId="right" 
+                    y={100} 
+                    stroke="#94a3b8" 
+                    strokeDasharray="5 5" 
+                    strokeWidth={2}
                   />
 
                   {/* 대분류별 스택 바 */}
-                  {categoryStats.map((category, index) => (
-                    <Bar
-                      key={category.name}
-                      dataKey={category.name}
-                      stackId="cost"
-                      fill={category.color}
-                      cursor="pointer"
-                    />
-                  ))}
-                </BarChart>
+                  {categoryStats.map((category, index) => {
+                    return (
+                      <Bar
+                        key={category.name}
+                        dataKey={category.name}
+                        stackId="cost"
+                        fill={category.color}
+                        yAxisId="left"
+                        cursor="pointer"
+                        radius={index === categoryStats.length - 1 ? [8, 8, 0, 0] : [0, 0, 0, 0]}
+                        animationDuration={800}
+                        animationBegin={index * 50}
+                      />
+                    );
+                  })}
+
+                  {/* YOY 라인 */}
+                  <Line
+                    type="monotone"
+                    dataKey="yoy"
+                    stroke="#ef4444"
+                    strokeWidth={3}
+                    yAxisId="right"
+                    dot={{ fill: '#ef4444', strokeWidth: 2, r: 5, stroke: '#fff' }}
+                    activeDot={{ r: 7, fill: '#ef4444', stroke: '#fff', strokeWidth: 3 }}
+                    name="YOY"
+                  />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           {/* 오른쪽: 카테고리별 비율 */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl p-6 shadow-md border border-slate-200">
-              <h3 className="text-lg font-bold text-slate-800 mb-4">카테고리별 비율</h3>
+            <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl p-6 shadow-xl border border-slate-100">
+              <h3 className="text-xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent mb-5">
+                카테고리별 비율 🎯
+              </h3>
               
               <div className="space-y-2">
                 {categoryStats.map((category) => {
@@ -339,44 +453,55 @@ export default function MLB2025Analysis() {
                   const isExpanded = expandedCategories.has(category.name);
 
                   return (
-                    <div key={category.name} className="border border-slate-200 rounded-lg overflow-hidden">
+                    <div key={category.name} className="border border-slate-200/50 rounded-xl overflow-hidden hover:shadow-md transition-all duration-200 bg-white">
                       {/* 카테고리 헤더 */}
                       <button
                         onClick={() => toggleCategory(category.name)}
-                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                        className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-gradient-to-r hover:from-slate-50 hover:to-transparent transition-all duration-200"
                       >
                         <div className="flex items-center space-x-3 flex-1">
                           <div 
-                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            className="w-4 h-4 rounded-lg flex-shrink-0 shadow-sm"
                             style={{ backgroundColor: category.color }}
                           />
                           <div className="text-left flex-1 min-w-0">
-                            <div className="text-sm font-medium text-slate-800 truncate">
+                            <div className="text-sm font-bold text-slate-800 truncate">
                               {category.name}
                             </div>
-                            <div className="text-xs text-slate-600">
-                              {formatCurrency(category.total)}
+                            <div className="text-xs text-slate-600 font-medium mt-0.5">
+                              {formatCurrency(category.total)} <span className="text-slate-400">({percentage.toFixed(1)}%)</span>
                             </div>
                           </div>
                         </div>
-                        {isExpanded ? (
-                          <ChevronUp className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                        )}
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-bold px-2 py-1 rounded-md ${
+                            category.yoy >= 0 
+                              ? 'bg-green-50 text-green-600' 
+                              : 'bg-red-50 text-red-600'
+                          }`}>
+                            {formatYOY(category.yoy)}
+                          </span>
+                          {isExpanded ? (
+                            <ChevronUp className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                          )}
+                        </div>
                       </button>
 
                       {/* YOY 토글 영역 */}
                       {isExpanded && (
-                        <div className="px-4 py-3 bg-slate-50 border-t border-slate-200">
-                          <div className="text-xs text-slate-600 mb-1">전년 대비 증감률</div>
-                          <div className={`text-lg font-bold ${
-                            category.yoy >= 0 ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            YOY: {formatYOY(category.yoy)}
-                          </div>
-                          <div className="mt-2 text-xs text-slate-500">
-                            비율: {percentage.toFixed(1)}%
+                        <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-transparent border-t border-slate-100">
+                          <div className="text-xs text-slate-600 mb-2 font-medium">전년 대비 증감률 상세</div>
+                          <div className="flex items-baseline gap-2">
+                            <div className={`text-2xl font-black ${
+                              category.yoy >= 0 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {formatYOY(category.yoy)}
+                            </div>
+                            <div className="text-xs text-slate-500 font-medium">
+                              {category.yoy >= 0 ? '↑ 증가' : '↓ 감소'}
+                            </div>
                           </div>
                         </div>
                       )}
