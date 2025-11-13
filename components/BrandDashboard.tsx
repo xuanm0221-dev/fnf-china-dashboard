@@ -1163,8 +1163,8 @@ export default function BrandDashboard({
                       cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }}
                       content={({ active, payload, label }) => {
                         if (active && payload && payload.length) {
-                          const currentYear = payload[0]?.value || 0;
-                          const previousYear = payload[1]?.value || 0;
+                          const currentYear = Number(payload[0]?.value) || 0;
+                          const previousYear = Number(payload[1]?.value) || 0;
                           const diff = currentYear - previousYear;
                           const yoy = previousYear > 0 ? ((currentYear / previousYear) * 100) : 0;
                           
@@ -1273,8 +1273,8 @@ export default function BrandDashboard({
                       cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }}
                       content={({ active, payload, label }) => {
                         if (active && payload && payload.length) {
-                          const currentYear = payload[0]?.value || 0;
-                          const previousYear = payload[1]?.value || 0;
+                          const currentYear = Number(payload[0]?.value) || 0;
+                          const previousYear = Number(payload[1]?.value) || 0;
                           const diff = currentYear - previousYear;
                           const yoy = previousYear > 0 ? ((currentYear / previousYear) * 100) : 0;
                           
