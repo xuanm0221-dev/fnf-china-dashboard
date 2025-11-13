@@ -19,6 +19,7 @@ import {
 } from 'recharts';
 import { ArrowLeft, TrendingUp, TrendingDown, Calendar, DollarSign, Edit, ChevronRight, ChevronDown, Users } from 'lucide-react';
 import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface CostData {
   브랜드: string;
@@ -33,7 +34,7 @@ interface CostData {
   비고: string;
 }
 
-// 트렌디한 파스텔 컬러 팔레트 (2024-2025 유행)
+// 트렌디한 파스텔 컬러 팔레트
 const COLORS = [
   '#F0A3FF', // 소프트 라벤더
   '#A8E6CF', // 민트 그린
@@ -59,6 +60,34 @@ const BRAND_NAMES: { [key: string]: string } = {
   'mlb-kids': 'KIDS',
   'discovery': 'DX',
   'common': '공통',
+};
+
+// 브랜드별 색상 매핑
+const BRAND_COLORS: { [key: string]: { primary: string; secondary: string; accent: string; light: string } } = {
+  'mlb': {
+    primary: '#4040AD',
+    secondary: '#5555C5',
+    accent: '#6B7BC5',
+    light: '#E8E9F9',
+  },
+  'mlb-kids': {
+    primary: '#6B93CB',
+    secondary: '#8AABDB',
+    accent: '#A3BFEB',
+    light: '#EBF2FA',
+  },
+  'discovery': {
+    primary: '#9CD9C6',
+    secondary: '#B5E5D8',
+    accent: '#CEEDE3',
+    light: '#F0FAF7',
+  },
+  'common': {
+    primary: '#EFEFEF',
+    secondary: '#D5D5D5',
+    accent: '#C0C0C0',
+    light: '#F8F8F8',
+  },
 };
 
 export default function BrandDashboard({ 
@@ -386,15 +415,15 @@ export default function BrandDashboard({
   // 월별 데이터 (대분류별 포함) - 브랜드 필터 적용
   const categories = Array.from(new Set(brandFilteredData.map((d) => d.대분류))).filter(c => c && c !== 'nan').sort();
   
-  // 대분류별 트렌디한 파스텔 색상 매핑
+  // 대분류별 부드러운 파스텔 색상 매핑
   const categoryColors: { [key: string]: string } = {
-    '인건비': '#FFAAA5', // 코랄 핑크
-    '복리후생비': '#C7CEEA', // 베이비 블루
-    '광고비': '#FFEAA7', // 버터 옐로우
-    '출장비': '#A8E6CF', // 민트 그린
-    '수주회': '#F0A3FF', // 소프트 라벤더
-    '감가상각비': '#FFD3B6', // 피치
-    '기타': '#DDA0DD', // 플럼
+    '인건비': '#FFB6C1', // 라이트 핑크
+    '복리후생비': '#ADD8E6', // 라이트 블루
+    '광고비': '#FFDAB9', // 피치 퍼프
+    '출장비': '#B0E0E6', // 파우더 블루
+    '수주회': '#DDA0DD', // 플럼
+    '감가상각비': '#FFDEAD', // 나바호 화이트
+    '기타': '#D8BFD8', // 시슬
   };
   
   // initialMonth가 있으면 해당 월까지만 필터링
@@ -477,12 +506,21 @@ export default function BrandDashboard({
     )
   ).filter(t => t && t !== 'nan');
 
-  // 증감률 계산
-  const lastTwoMonths = monthlyData.slice(-2);
-  const changeRate =
-    lastTwoMonths.length === 2 && lastTwoMonths[0].총비용 > 0
-      ? ((lastTwoMonths[1].총비용 - lastTwoMonths[0].총비용) / lastTwoMonths[0].총비용) * 100
-      : 0;
+  // YOY 계산 (전년 동월 대비)
+  const currentYearMonth = selectedMonth && selectedMonth !== 'all' ? selectedMonth : '202510';
+  const previousYearMonth = currentYearMonth.replace('2025', '2024');
+  
+  const currentYearCost = brandFilteredData
+    .filter(d => d.년월 === currentYearMonth)
+    .reduce((sum, row) => sum + row.금액, 0);
+  
+  const previousYearCost = brandFilteredData
+    .filter(d => d.년월 === previousYearMonth)
+    .reduce((sum, row) => sum + row.금액, 0);
+  
+  const changeRate = previousYearCost > 0 
+    ? (currentYearCost / previousYearCost) * 100
+    : 0;
 
   // YOY (전년 동기 대비) 데이터 계산 - 2025년 각 월의 2024년 동월 대비 (본부 필터 적용)
   const yoyData = displayMonths
@@ -523,11 +561,20 @@ export default function BrandDashboard({
     // K 단위 (천 단위)로 변환
     const valueInK = value / 1000;
     
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('ko-KR', {
       style: 'decimal',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(valueInK) + 'K';
+  };
+
+  // 숫자 포맷팅 함수 (천단위 콤마)
+  const formatNumber = (value: number) => {
+    return new Intl.NumberFormat('ko-KR', {
+      style: 'decimal',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 1,
+    }).format(value);
   };
 
   // 전체 펼치기/접기 함수
@@ -706,70 +753,131 @@ export default function BrandDashboard({
       </header>
 
       <main className="container mx-auto px-4 py-6 md:py-8">
-        {/* 통계 카드 - 트렌디한 파스텔 디자인 */}
+        {/* 통계 카드 - SHADCN 스타일 with 브랜드 컬러 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* 1. 총 비용 */}
-          <div className="bg-gradient-to-br from-[#FFAAA5] to-[#FFD3B6] rounded-2xl p-6 shadow-md border border-[#FFAAA5]/30 hover:shadow-lg transition-all duration-300">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">총 비용</h3>
-              <div className="w-10 h-10 bg-[#FFAAA5] rounded-xl flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-white" />
+          <Card 
+            className="border-l-4 hover:shadow-xl transition-all duration-300"
+            style={{ borderLeftColor: BRAND_COLORS[brandId]?.primary }}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-slate-600">
+                총 비용
+              </CardTitle>
+              <div 
+                className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm"
+                style={{ backgroundColor: BRAND_COLORS[brandId]?.light }}
+              >
+                <DollarSign 
+                  className="w-5 h-5" 
+                  style={{ color: BRAND_COLORS[brandId]?.primary }}
+                />
               </div>
-            </div>
-            <p className="text-2xl md:text-3xl font-bold text-slate-800">
-              {formatCurrency(totalCost)}
-            </p>
-          </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold tracking-tight text-slate-900">
+                {formatCurrency(totalCost)}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                CNY (천위안)
+              </p>
+            </CardContent>
+          </Card>
 
           {/* 2. 실판매액 */}
-          <div className="bg-gradient-to-br from-[#FFEAA7] to-[#FFD3B6] rounded-2xl p-6 shadow-md border border-[#FFEAA7]/30 hover:shadow-lg transition-all duration-300">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">실판매액</h3>
-              <div className="w-10 h-10 bg-[#FFEAA7] rounded-xl flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-white" />
+          <Card 
+            className="border-l-4 hover:shadow-xl transition-all duration-300"
+            style={{ borderLeftColor: BRAND_COLORS[brandId]?.secondary }}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-slate-600">
+                실판매액
+              </CardTitle>
+              <div 
+                className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm"
+                style={{ backgroundColor: BRAND_COLORS[brandId]?.light }}
+              >
+                <TrendingUp 
+                  className="w-5 h-5" 
+                  style={{ color: BRAND_COLORS[brandId]?.secondary }}
+                />
               </div>
-            </div>
-            <p className="text-2xl md:text-3xl font-bold text-slate-800">
-              {revenue > 0 ? formatCurrency(revenue) : '-'}
-            </p>
-          </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold tracking-tight text-slate-900">
+                {revenue > 0 ? formatCurrency(revenue) : '-'}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                CNY (천위안)
+              </p>
+            </CardContent>
+          </Card>
 
           {/* 3. 월별 인원수 */}
-          <div className="bg-gradient-to-br from-[#C7CEEA] to-[#A8E6CF] rounded-2xl p-6 shadow-md border border-[#C7CEEA]/30 hover:shadow-lg transition-all duration-300">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">월별 인원수</h3>
-              <div className="w-10 h-10 bg-[#C7CEEA] rounded-xl flex items-center justify-center">
-                <Users className="w-5 h-5 text-white" />
+          <Card 
+            className="border-l-4 hover:shadow-xl transition-all duration-300"
+            style={{ borderLeftColor: BRAND_COLORS[brandId]?.accent }}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-slate-600">
+                월별 인원수
+              </CardTitle>
+              <div 
+                className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm"
+                style={{ backgroundColor: BRAND_COLORS[brandId]?.light }}
+              >
+                <Users 
+                  className="w-5 h-5" 
+                  style={{ color: BRAND_COLORS[brandId]?.accent }}
+                />
               </div>
-            </div>
-            <p className="text-2xl md:text-3xl font-bold text-slate-800">
-              {employeeCount}명
-            </p>
-          </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold tracking-tight text-slate-900">
+                {employeeCount}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                명
+              </p>
+            </CardContent>
+          </Card>
 
           {/* 4. 비용 YOY */}
-          <div
-            className={`bg-gradient-to-br rounded-2xl p-6 shadow-md border hover:shadow-lg transition-all duration-300 ${
-              changeRate >= 0 
-                ? 'from-[#FFAAA5] to-[#FFD3B6] border-[#FFAAA5]/30' 
-                : 'from-[#A8E6CF] to-[#B5E5CF] border-[#A8E6CF]/30'
-            }`}
+          <Card 
+            className="border-l-4 hover:shadow-xl transition-all duration-300"
+            style={{ 
+              borderLeftColor: changeRate >= 100 ? '#ef4444' : '#3b82f6'
+            }}
           >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">비용 YOY</h3>
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${changeRate >= 0 ? 'bg-[#FFAAA5]' : 'bg-[#A8E6CF]'}`}>
-                {changeRate >= 0 ? (
-                  <TrendingUp className="w-5 h-5 text-white" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-slate-600">
+                비용 YOY
+              </CardTitle>
+              <div 
+                className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-sm ${
+                  changeRate >= 100 ? 'bg-red-100' : 'bg-blue-100'
+                }`}
+              >
+                {changeRate >= 100 ? (
+                  <TrendingUp className="w-5 h-5 text-red-600" />
                 ) : (
-                  <TrendingDown className="w-5 h-5 text-white" />
+                  <TrendingDown className="w-5 h-5 text-blue-600" />
                 )}
               </div>
-            </div>
-            <p className="text-2xl md:text-3xl font-bold text-slate-800">
-              {changeRate >= 0 ? '+' : ''}
-              {changeRate.toFixed(1)}%
-            </p>
-          </div>
+            </CardHeader>
+            <CardContent>
+              <div 
+                className={`text-3xl font-bold tracking-tight ${
+                  changeRate >= 100 ? 'text-red-600' : 'text-blue-600'
+                }`}
+              >
+                {formatNumber(changeRate)}%
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                전년 동월 대비 (당년/전년 × 100)
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* 그래프 섹션 */}
@@ -829,38 +937,113 @@ export default function BrandDashboard({
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis 
                   dataKey="month" 
-                  stroke="#94a3b8"
-                  style={{ fontSize: '12px' }}
+                  stroke="#475569"
+                  style={{ fontSize: '12px', fontWeight: 500 }}
                 />
                 <YAxis 
                   yAxisId="left"
-                  stroke="#94a3b8"
-                  style={{ fontSize: '12px' }}
-                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
+                  stroke="#475569"
+                  style={{ fontSize: '12px', fontWeight: 500 }}
+                  tickFormatter={(value) => formatCurrency(value)}
                 />
                 <YAxis 
                   yAxisId="right"
                   orientation="right"
-                  stroke="#F0A3FF"
-                  style={{ fontSize: '12px' }}
-                  tickFormatter={(value) => `${value}%`}
+                  stroke="#475569"
+                  style={{ fontSize: '12px', fontWeight: 500 }}
+                  tickFormatter={(value) => `${formatNumber(value)}%`}
                 />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #e9d5ff',
-                    borderRadius: '8px',
-                    color: '#1e293b',
-                  }}
-                  formatter={(value: number, name: string) => {
-                    if (name === 'YOY') {
-                      return [`${value}%`, name];
+                  cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      const currentMonth = label;
+                      const year = selectedMonth && selectedMonth !== 'all' 
+                        ? selectedMonth.substring(0, 4) 
+                        : '2025';
+                      
+                      // 총계 계산
+                      let totalCost = 0;
+                      const categoryData: { name: string; value: number; color: string }[] = [];
+                      
+                      payload.forEach((entry: any) => {
+                        if (entry.dataKey !== 'YOY (%)' && entry.value > 0) {
+                          totalCost += entry.value;
+                          categoryData.push({
+                            name: entry.name || entry.dataKey,
+                            value: entry.value,
+                            color: entry.color || entry.fill,
+                          });
+                        }
+                      });
+                      
+                      // YOY 데이터 찾기
+                      const yoyEntry = payload.find((entry: any) => entry.dataKey === 'YOY (%)');
+                      const yoyValue = yoyEntry ? yoyEntry.value : null;
+                      
+                      return (
+                        <div className="bg-white rounded-xl shadow-xl border border-slate-200 p-4 min-w-[280px]">
+                          {/* 헤더 */}
+                          <div className="border-b border-slate-200 pb-3 mb-3">
+                            <div className="text-lg font-bold text-slate-800">
+                              {year}년 {currentMonth}월
+                            </div>
+                            <div className="mt-2">
+                              <div className="text-xs text-slate-500">총비용</div>
+                              <div className="text-xl font-bold text-slate-900">
+                                {formatCurrency(totalCost)}
+                              </div>
+                            </div>
+                            {yoyValue !== null && (
+                              <div className="mt-2">
+                                <div className="text-xs text-slate-500">전년</div>
+                                  <div 
+                                  className={`text-base font-semibold ${
+                                    Number(yoyValue) >= 100 ? 'text-red-600' : 'text-green-600'
+                                  }`}
+                                >
+                                  YOY: {formatNumber(Number(yoyValue))}%
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* 카테고리별 비용 */}
+                          <div className="space-y-2">
+                            <div className="text-xs font-semibold text-slate-600 mb-2">카테고리별 비용</div>
+                            {categoryData
+                              .sort((a, b) => b.value - a.value)
+                              .map((item, index) => (
+                                <div key={index} className="flex items-center justify-between text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <div 
+                                      className="w-3 h-3 rounded-full" 
+                                      style={{ backgroundColor: item.color }}
+                                    />
+                                    <span className="text-slate-700 font-medium">{item.name}</span>
+                                  </div>
+                                  <span className="font-semibold text-slate-800">
+                                    {formatCurrency(item.value)}
+                                  </span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      );
                     }
-                    return [formatCurrency(value), name];
+                    return null;
                   }}
-                  labelFormatter={(label) => `${label}월`}
                 />
-                <Legend />
+                <Legend 
+                  wrapperStyle={{ paddingTop: '20px' }}
+                  iconType="circle"
+                  iconSize={10}
+                  formatter={(value) => (
+                    <span style={{ color: '#475569', fontWeight: 500, fontSize: '13px' }}>
+                      {value}
+                    </span>
+                  )}
+                />
                 {selectedCategory === 'all' ? (
                   // 전체 선택 시: 대분류별 스택
                   <>
@@ -890,9 +1073,9 @@ export default function BrandDashboard({
                   yAxisId="right"
                   type="monotone"
                   dataKey="YOY (%)"
-                  stroke="#F0A3FF"
+                  stroke="#ef4444"
                   strokeWidth={3}
-                  dot={{ fill: '#FFAAA5', r: 6 }}
+                  dot={{ fill: '#dc2626', r: 6 }}
                   name="YOY"
                 />
               </ComposedChart>
@@ -963,19 +1146,81 @@ export default function BrandDashboard({
                     }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis type="number" stroke="#94a3b8" tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`} />
-                    <YAxis dataKey="name" type="category" stroke="#94a3b8" width={120} style={{ fontSize: '11px' }} />
+                    <XAxis 
+                      type="number" 
+                      stroke="#475569" 
+                      style={{ fontSize: '12px', fontWeight: 500 }}
+                      tickFormatter={(value) => formatCurrency(value)} 
+                    />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      stroke="#475569" 
+                      width={120} 
+                      style={{ fontSize: '11px', fontWeight: 500 }} 
+                    />
                     <Tooltip 
-                      formatter={(value: number) => formatCurrency(value)}
-                      contentStyle={{
-                        backgroundColor: '#ffffff',
-                        border: '1px solid #e9d5ff',
-                        borderRadius: '8px',
+                      cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }}
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          const currentYear = payload[0]?.value || 0;
+                          const previousYear = payload[1]?.value || 0;
+                          const diff = currentYear - previousYear;
+                          const yoy = previousYear > 0 ? ((currentYear / previousYear) * 100) : 0;
+                          
+                          return (
+                            <div className="bg-white rounded-xl shadow-xl border border-slate-200 p-4 min-w-[240px]">
+                              <div className="border-b border-slate-200 pb-2 mb-3">
+                                <div className="text-base font-bold text-slate-800">{label}</div>
+                              </div>
+                              <div className="space-y-2">
+                                {payload.map((entry: any, index: number) => (
+                                  <div key={index} className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <div 
+                                        className="w-3 h-3 rounded-full" 
+                                        style={{ backgroundColor: entry.fill }}
+                                      />
+                                      <span className="text-slate-700 font-medium">{entry.name}</span>
+                                    </div>
+                                    <span className="font-semibold text-slate-800">
+                                      {formatCurrency(entry.value)}
+                                    </span>
+                                  </div>
+                                ))}
+                                <div className="pt-2 border-t border-slate-100">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-600 font-medium">차이</span>
+                                    <span className={`font-semibold ${diff >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                      {diff >= 0 ? '+' : ''}{formatCurrency(diff)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-sm mt-1">
+                                    <span className="text-slate-600 font-medium">YOY</span>
+                                    <span className={`font-semibold ${yoy >= 100 ? 'text-red-600' : 'text-green-600'}`}>
+                                      {formatNumber(yoy)}%
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
                       }}
                     />
-                    <Legend />
-                    <Bar dataKey="당해" fill="#FFAAA5" cursor={!selectedCategoryDetail ? 'pointer' : 'default'} />
-                    <Bar dataKey="전년" fill="#C7CEEA" cursor={!selectedCategoryDetail ? 'pointer' : 'default'} />
+                    <Legend 
+                      wrapperStyle={{ paddingTop: '20px' }}
+                      iconType="circle"
+                      iconSize={10}
+                      formatter={(value) => (
+                        <span style={{ color: '#475569', fontWeight: 500, fontSize: '13px' }}>
+                          {value}
+                        </span>
+                      )}
+                    />
+                    <Bar dataKey="당해" fill="#FFB6C1" cursor={!selectedCategoryDetail ? 'pointer' : 'default'} />
+                    <Bar dataKey="전년" fill="#ADD8E6" cursor={!selectedCategoryDetail ? 'pointer' : 'default'} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1011,19 +1256,81 @@ export default function BrandDashboard({
                     layout="vertical"
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis type="number" stroke="#94a3b8" tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`} />
-                    <YAxis dataKey="name" type="category" stroke="#94a3b8" width={120} style={{ fontSize: '11px' }} />
+                    <XAxis 
+                      type="number" 
+                      stroke="#475569" 
+                      style={{ fontSize: '12px', fontWeight: 500 }}
+                      tickFormatter={(value) => formatCurrency(value)} 
+                    />
+                    <YAxis 
+                      dataKey="name" 
+                      type="category" 
+                      stroke="#475569" 
+                      width={120} 
+                      style={{ fontSize: '11px', fontWeight: 500 }} 
+                    />
                     <Tooltip 
-                      formatter={(value: number) => formatCurrency(value)}
-                      contentStyle={{
-                        backgroundColor: '#ffffff',
-                        border: '1px solid #e9d5ff',
-                        borderRadius: '8px',
+                      cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }}
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          const currentYear = payload[0]?.value || 0;
+                          const previousYear = payload[1]?.value || 0;
+                          const diff = currentYear - previousYear;
+                          const yoy = previousYear > 0 ? ((currentYear / previousYear) * 100) : 0;
+                          
+                          return (
+                            <div className="bg-white rounded-xl shadow-xl border border-slate-200 p-4 min-w-[240px]">
+                              <div className="border-b border-slate-200 pb-2 mb-3">
+                                <div className="text-base font-bold text-slate-800">{label}</div>
+                              </div>
+                              <div className="space-y-2">
+                                {payload.map((entry: any, index: number) => (
+                                  <div key={index} className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <div 
+                                        className="w-3 h-3 rounded-full" 
+                                        style={{ backgroundColor: entry.fill }}
+                                      />
+                                      <span className="text-slate-700 font-medium">{entry.name}</span>
+                                    </div>
+                                    <span className="font-semibold text-slate-800">
+                                      {formatCurrency(entry.value)}
+                                    </span>
+                                  </div>
+                                ))}
+                                <div className="pt-2 border-t border-slate-100">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-600 font-medium">차이</span>
+                                    <span className={`font-semibold ${diff >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                      {diff >= 0 ? '+' : ''}{formatCurrency(diff)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-sm mt-1">
+                                    <span className="text-slate-600 font-medium">YOY</span>
+                                    <span className={`font-semibold ${yoy >= 100 ? 'text-red-600' : 'text-green-600'}`}>
+                                      {formatNumber(yoy)}%
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
                       }}
                     />
-                    <Legend />
-                    <Bar dataKey="당해" fill="#FFAAA5" />
-                    <Bar dataKey="전년" fill="#C7CEEA" />
+                    <Legend 
+                      wrapperStyle={{ paddingTop: '20px' }}
+                      iconType="circle"
+                      iconSize={10}
+                      formatter={(value) => (
+                        <span style={{ color: '#475569', fontWeight: 500, fontSize: '13px' }}>
+                          {value}
+                        </span>
+                      )}
+                    />
+                    <Bar dataKey="당해" fill="#FFB6C1" />
+                    <Bar dataKey="전년" fill="#ADD8E6" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

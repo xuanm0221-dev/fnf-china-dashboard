@@ -210,6 +210,126 @@ npm run build
 npm start
 ```
 
+## 🚢 배포 가이드
+
+### GitHub에 푸시하기
+
+1. **GitHub 저장소 생성**
+   - GitHub에서 새 저장소를 생성합니다
+   - 저장소 이름을 입력하고 생성합니다
+
+2. **로컬 저장소 준비**
+   ```bash
+   # 변경사항 추가
+   git add .
+
+   # 커밋
+   git commit -m "Initial commit: Brand Cost Dashboard"
+
+   # 원격 저장소 추가 (your-username과 your-repo-name을 실제 값으로 변경)
+   git remote add origin https://github.com/your-username/your-repo-name.git
+
+   # 메인 브랜치로 푸시
+   git branch -M main
+   git push -u origin main
+   ```
+
+3. **필요한 파일만 커밋 확인**
+   - `.gitignore` 파일이 올바르게 설정되어 있는지 확인
+   - `node_modules`, `.next`, `.env.local` 등은 자동으로 제외됩니다
+
+### Vercel에 배포하기
+
+Vercel은 Next.js 프로젝트를 완벽하게 지원하며, GitHub과 연동하여 자동 배포가 가능합니다.
+
+#### 방법 1: Vercel 웹사이트를 통한 배포 (권장)
+
+1. **Vercel 계정 생성**
+   - [https://vercel.com](https://vercel.com)에 접속
+   - GitHub 계정으로 로그인
+
+2. **프로젝트 Import**
+   - 대시보드에서 "New Project" 클릭
+   - GitHub 저장소 선택
+   - 프로젝트 설정:
+     - **Framework Preset**: Next.js (자동 감지됨)
+     - **Root Directory**: `./` (기본값)
+     - **Build Command**: `npm run build` (기본값)
+     - **Output Directory**: `.next` (기본값)
+     - **Install Command**: `npm install` (기본값)
+
+3. **환경 변수 설정** (필요한 경우)
+   - 프로젝트 설정에서 Environment Variables 추가
+   - 현재 프로젝트는 환경 변수가 필요 없을 수 있습니다
+
+4. **Deploy**
+   - "Deploy" 버튼 클릭
+   - 배포가 완료되면 자동으로 URL이 생성됩니다
+   - 예: `https://your-project-name.vercel.app`
+
+#### 방법 2: Vercel CLI를 통한 배포
+
+```bash
+# Vercel CLI 설치
+npm i -g vercel
+
+# 프로젝트 디렉토리에서 배포
+vercel
+
+# 프로덕션 배포
+vercel --prod
+```
+
+### 자동 배포 설정
+
+GitHub과 Vercel을 연동하면:
+- ✅ **자동 배포**: `main` 브랜치에 푸시할 때마다 자동으로 배포됩니다
+- ✅ **프리뷰 배포**: Pull Request 생성 시 프리뷰 URL이 생성됩니다
+- ✅ **빠른 롤백**: 이전 배포 버전으로 쉽게 롤백할 수 있습니다
+
+### 배포 후 확인사항
+
+1. **빌드 성공 확인**
+   - Vercel 대시보드에서 빌드 로그 확인
+   - 에러가 있다면 로그에서 확인 가능
+
+2. **환경 변수 확인** (필요한 경우)
+   - 프로덕션 환경에서도 환경 변수가 설정되어 있는지 확인
+
+3. **데이터 파일 확인**
+   - `public/data/` 폴더의 CSV 파일들이 제대로 포함되었는지 확인
+   - 파일 크기가 너무 크면 Vercel의 제한을 확인해야 합니다
+
+### Vercel 배포 최적화
+
+1. **빌드 최적화**
+   - `next.config.js`에서 이미지 최적화 설정
+   - 정적 파일 캐싱 설정
+
+2. **성능 모니터링**
+   - Vercel Analytics 활성화
+   - Web Vitals 모니터링
+
+3. **도메인 연결** (선택사항)
+   - Vercel에서 커스텀 도메인 연결 가능
+   - SSL 인증서 자동 적용
+
+### 문제 해결
+
+#### 빌드 실패 시
+- Vercel 대시보드의 빌드 로그 확인
+- 로컬에서 `npm run build` 테스트
+- 의존성 문제 확인
+
+#### 데이터 파일이 로드되지 않을 때
+- `public/data/` 폴더에 파일이 포함되어 있는지 확인
+- 파일 경로가 올바른지 확인
+- 파일 크기 제한 확인 (Vercel은 파일 크기 제한이 있습니다)
+
+#### 환경 변수 문제
+- Vercel 프로젝트 설정에서 환경 변수 확인
+- 로컬과 프로덕션 환경 변수 일치 확인
+
 ## 📝 데이터 준비 체크리스트
 
 - [ ] CSV 파일 준비 (cost_YYYYMM.csv 형식)
