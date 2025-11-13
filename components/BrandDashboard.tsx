@@ -17,7 +17,7 @@ import {
   ResponsiveContainer,
   ComposedChart,
 } from 'recharts';
-import { ArrowLeft, TrendingUp, TrendingDown, Calendar, DollarSign, Edit, ChevronRight, ChevronDown, Users } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Calendar, DollarSign, Edit, ChevronRight, ChevronDown, Users, Sparkles, Brain, Save, X } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -114,7 +114,140 @@ export default function BrandDashboard({
   // 대분류 상세 뷰 state
   const [selectedCategoryDetail, setSelectedCategoryDetail] = useState<string | null>(null); // null이면 대분류 전체, string이면 해당 대분류의 소분류
 
+  // AI 인사이트 편집 state
+  const [insights, setInsights] = useState<{[key: string]: {trend?: string; insight?: string; analysis?: string; costItem?: string}}>({});
+  const [editingBox, setEditingBox] = useState<string | null>(null); // 편집 중인 박스 키
+  const [editingBoxData, setEditingBoxData] = useState<{trend?: string; insight?: string; analysis?: string; costItem?: string}>({});
+
   const brandName = BRAND_NAMES[brandId] || brandId;
+
+  // 인사이트 로드
+  useEffect(() => {
+    loadInsights();
+  }, []);
+
+  const loadInsights = async () => {
+    try {
+      const response = await fetch('/api/insights');
+      if (response.ok) {
+        const data = await response.json();
+        setInsights(data || {});
+      }
+    } catch (error) {
+      console.error('Error loading insights:', error);
+    }
+  };
+
+  const startEditingBox = (boxKey: string) => {
+    setEditingBox(boxKey);
+    // 저장된 데이터가 있으면 사용하고, 없으면 빈 객체로 시작
+    const savedData = insights[boxKey] || {};
+    setEditingBoxData(savedData);
+  };
+
+  const cancelEditingBox = () => {
+    setEditingBox(null);
+    setEditingBoxData({});
+  };
+
+  const saveBoxInsights = async (boxKey: string) => {
+    try {
+      const updatedInsights = {
+        ...insights,
+        [boxKey]: editingBoxData
+      };
+      setInsights(updatedInsights);
+      
+      const response = await fetch('/api/insights', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedInsights),
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setEditingBox(null);
+        setEditingBoxData({});
+        if (result.message) {
+          console.log(result.message);
+        }
+        alert('인사이트가 저장되었습니다.');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error saving insights:', errorData);
+        alert('저장에 실패했습니다. 로컬 개발 환경에서만 파일 저장이 가능합니다.');
+      }
+    } catch (error) {
+      console.error('Error saving insights:', error);
+      alert('저장에 실패했습니다. 네트워크 오류가 발생했을 수 있습니다.');
+    }
+  };
+
+  const updateEditingBoxData = (type: string, value: string) => {
+    setEditingBoxData(prev => {
+      const updated = {
+        ...prev,
+        [type]: value
+      };
+      return updated;
+    });
+  };
+
+  // 편집 가능한 인사이트 컴포넌트 (박스 단위 편집)
+  const EditableInsight = ({ 
+    boxKey,
+    type, 
+    defaultText, 
+    label, 
+    icon: Icon, 
+    iconColor 
+  }: { 
+    boxKey: string;
+    type: string; 
+    defaultText: string; 
+    label: string; 
+    icon: any; 
+    iconColor: string;
+  }) => {
+    const isEditing = editingBox === boxKey;
+    const savedText = insights[boxKey]?.[type as keyof typeof insights[typeof boxKey]] as string | undefined;
+    const displayText = savedText || defaultText;
+    
+    // 편집 모드일 때는 편집 박스 데이터를 사용, 없으면 기본 텍스트 사용
+    const editingValue = editingBoxData[type as keyof typeof editingBoxData] as string | undefined;
+    const editingText = isEditing 
+      ? (editingValue !== undefined ? editingValue : (savedText || defaultText))
+      : displayText;
+
+    // HTML 태그 제거 (표시용)
+    const cleanText = (text: string) => {
+      return text.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+    };
+
+    return (
+      <div className="flex items-start gap-2">
+        <Icon className={`w-4 h-4 ${iconColor} mt-0.5 flex-shrink-0`} />
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-semibold text-slate-800">{label}:</span>
+          </div>
+          {isEditing ? (
+            <textarea
+              value={editingText}
+              onChange={(e) => updateEditingBoxData(type, e.target.value)}
+              className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
+              rows={3}
+              placeholder="인사이트 텍스트를 입력하세요..."
+            />
+          ) : (
+            <p className="text-slate-600 mt-1 whitespace-pre-wrap">{cleanText(displayText)}</p>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // initialMonth가 변경되면 selectedMonth 업데이트
   useEffect(() => {
@@ -415,15 +548,21 @@ export default function BrandDashboard({
   // 월별 데이터 (대분류별 포함) - 브랜드 필터 적용
   const categories = Array.from(new Set(brandFilteredData.map((d) => d.대분류))).filter(c => c && c !== 'nan').sort();
   
-  // 대분류별 부드러운 파스텔 색상 매핑
+  // 대분류별 색상 매핑 (제공된 색상 팔레트 - 사용자 지정 + 나머지 배합)
   const categoryColors: { [key: string]: string } = {
-    '인건비': '#FFB6C1', // 라이트 핑크
-    '복리후생비': '#ADD8E6', // 라이트 블루
-    '광고비': '#FFDAB9', // 피치 퍼프
-    '출장비': '#B0E0E6', // 파우더 블루
-    '수주회': '#DDA0DD', // 플럼
-    '감가상각비': '#FFDEAD', // 나바호 화이트
-    '기타': '#D8BFD8', // 시슬
+    '인건비': '#87C5FF', // 하늘색
+    '복리후생비': '#87E4C6', // 민트 (지정)
+    '광고비': '#C1B2FF', // 연보라 (지정)
+    '수주회': '#F7DB6C', // 옐로우 (노란색)
+    '출장비': '#F5A84C', // 오렌지
+    '감가상각비': '#F7A7C9', // 핑크 (분홍색)
+    '기타': '#A3F27A', // 라이트그린
+    '지급수수료': '#87C5FF', // 하늘색
+    '광고선전비': '#F7A7C9', // 핑크
+    '사가상각비(시설)': '#87C5FF', // 하늘색
+    'VMD/매장부수대': '#F5A84C', // 오렌지
+    '샘플비(제작/구입)': '#A3F27A', // 라이트그린
+    '임차료': '#F5A84C', // 오렌지
   };
   
   // initialMonth가 있으면 해당 월까지만 필터링
@@ -738,15 +877,6 @@ export default function BrandDashboard({
                     </option>
                   ))}
               </select>
-              
-              {/* 편집 버튼 */}
-              <button
-                className="flex items-center space-x-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
-                onClick={() => alert('편집 기능은 준비 중입니다.')}
-              >
-                <Edit className="w-4 h-4" />
-                <span className="hidden sm:inline">편집</span>
-              </button>
             </div>
           </div>
         </div>
@@ -890,7 +1020,7 @@ export default function BrandDashboard({
               {/* 필터 행 */}
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-slate-700">본부:</label>
+                  <label className="text-sm font-medium text-slate-700">부서:</label>
                   <select
                     value={selectedDepartment}
                     onChange={(e) => {
@@ -915,7 +1045,7 @@ export default function BrandDashboard({
                     onChange={(e) => setSelectedCategory(e.target.value)}
                     className="px-3 py-1.5 bg-white text-slate-800 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-300"
                   >
-                    <option value="all">전체 (스택)</option>
+                    <option value="all">전체</option>
                     {categories.map((cat) => (
                       <option key={cat} value={cat}>
                         {cat}
@@ -1080,6 +1210,118 @@ export default function BrandDashboard({
                 />
               </ComposedChart>
             </ResponsiveContainer>
+
+            {/* 비용추이 AI분석 박스 */}
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-200/50 relative">
+                <div className="absolute top-4 right-4">
+                  {editingBox === 'monthly-trend' ? (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => saveBoxInsights('monthly-trend')}
+                        className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
+                        title="저장"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={cancelEditingBox}
+                        className="p-1.5 text-slate-500 hover:bg-slate-100 rounded transition-colors"
+                        title="취소"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => startEditingBox('monthly-trend')}
+                      className="p-1.5 text-slate-500 hover:bg-slate-100 rounded transition-colors"
+                      title="편집"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <Sparkles className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1 pr-8">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-lg font-bold text-slate-800">비용추이 AI분석</h3>
+                      <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+                        AI
+                      </span>
+                    </div>
+                    <div className="space-y-3 text-sm text-slate-700">
+                      <EditableInsight
+                        boxKey="monthly-trend"
+                        type="trend"
+                        defaultText={(() => {
+                          if (monthlyData.length === 0) return '데이터가 없습니다.';
+                          const categoryLabel = selectedCategory !== 'all' ? `${selectedCategory}의 ` : '';
+                          const filteredMonthlyData = monthlyData.map(m => {
+                            if (selectedCategory !== 'all' && m[selectedCategory]) {
+                              return { ...m, 분석비용: m[selectedCategory] || 0 };
+                            }
+                            return { ...m, 분석비용: m.총비용 || 0 };
+                          });
+                          const recentMonths = filteredMonthlyData.slice(-3).filter(m => m.분석비용 > 0);
+                          const avgCost = recentMonths.length > 0 
+                            ? recentMonths.reduce((sum, m) => sum + (m.분석비용 || 0), 0) / recentMonths.length 
+                            : 0;
+                          const firstMonth = filteredMonthlyData.find(m => m.분석비용 > 0);
+                          const lastMonth = [...filteredMonthlyData].reverse().find(m => m.분석비용 > 0);
+                          if (!firstMonth || !lastMonth) return '비용 데이터를 분석할 수 없습니다.';
+                          const firstTotal = firstMonth.분석비용 || 0;
+                          const lastTotal = lastMonth.분석비용 || 0;
+                          const trend = lastTotal > firstTotal ? '증가' : lastTotal < firstTotal ? '감소' : '유지';
+                          const changePercent = firstTotal > 0 
+                            ? Math.abs(((lastTotal - firstTotal) / firstTotal) * 100).toFixed(1) 
+                            : '0';
+                          return `${categoryLabel}최근 3개월 평균 비용은 ${formatCurrency(avgCost)}이며, 전체 기간 동안 비용이 ${trend} 추세를 보이고 있습니다 (${changePercent}% 변화).`;
+                        })()}
+                        label="트렌드 분석"
+                        icon={TrendingUp}
+                        iconColor="text-purple-600"
+                      />
+                      <EditableInsight
+                        boxKey="monthly-trend"
+                        type="insight"
+                        defaultText={(() => {
+                          if (monthlyData.length === 0) return '데이터가 없습니다.';
+                          const categoryLabel = selectedCategory !== 'all' ? `${selectedCategory}의 ` : '';
+                          const filteredMonthlyData = monthlyData.map(m => {
+                            if (selectedCategory !== 'all' && m[selectedCategory]) {
+                              return { ...m, 분석비용: m[selectedCategory] || 0 };
+                            }
+                            return { ...m, 분석비용: m.총비용 || 0 };
+                          });
+                          const maxMonth = filteredMonthlyData.reduce((max, m) => {
+                            const maxCost = max.분석비용 || 0;
+                            const currentCost = m.분석비용 || 0;
+                            return currentCost > maxCost ? m : max;
+                          }, filteredMonthlyData[0]);
+                          const minMonth = filteredMonthlyData.reduce((min, m) => {
+                            const minCost = min.분석비용 || 0;
+                            const currentCost = m.분석비용 || 0;
+                            return currentCost > 0 && (minCost === 0 || currentCost < minCost) ? m : min;
+                          }, filteredMonthlyData[0]);
+                          if (maxMonth && maxMonth.분석비용 > 0) {
+                            const categoryText = selectedCategory !== 'all' ? `${selectedCategory} ` : '';
+                            return `${categoryText}${maxMonth.month}월에 가장 높은 비용(${formatCurrency(maxMonth.분석비용)})이 발생했습니다. ${minMonth && minMonth.month !== maxMonth.month ? `${minMonth.month}월(${formatCurrency(minMonth.분석비용)})과 비교하여` : ''} 비용 최적화 기회를 찾아보세요.`;
+                          }
+                          return '비용 데이터를 분석할 수 없습니다.';
+                        })()}
+                        label="인사이트"
+                        icon={Brain}
+                        iconColor="text-blue-600"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* 대분류별 상세 분석 (소분류 + 코스트센터) */}
@@ -1087,7 +1329,7 @@ export default function BrandDashboard({
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">
-                  {selectedCategoryDetail ? `${selectedCategoryDetail} > 소분류` : '인건비 > 인건비 > 소분류'}
+                  {selectedCategoryDetail ? `${selectedCategoryDetail} > 소분류` : `${brandName} 코스트센터별 비용 상세`}
                 </h2>
                 <p className="text-sm text-slate-500">소분류별 비용 및 코스트센터별 (클릭하여 계정별 보기)</p>
               </div>
@@ -1219,8 +1461,8 @@ export default function BrandDashboard({
                         </span>
                       )}
                     />
-                    <Bar dataKey="당해" fill="#FFB6C1" cursor={!selectedCategoryDetail ? 'pointer' : 'default'} />
-                    <Bar dataKey="전년" fill="#ADD8E6" cursor={!selectedCategoryDetail ? 'pointer' : 'default'} />
+                    <Bar dataKey="당해" fill="#F7A7C9" cursor={!selectedCategoryDetail ? 'pointer' : 'default'} />
+                    <Bar dataKey="전년" fill="#87C5FF" cursor={!selectedCategoryDetail ? 'pointer' : 'default'} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1329,11 +1571,149 @@ export default function BrandDashboard({
                         </span>
                       )}
                     />
-                    <Bar dataKey="당해" fill="#FFB6C1" />
-                    <Bar dataKey="전년" fill="#ADD8E6" />
+                    <Bar dataKey="당해" fill="#F7A7C9" />
+                    <Bar dataKey="전년" fill="#87C5FF" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
+            </div>
+
+            {/* 코스트센터별 비용 AI분석 박스 */}
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              {(() => {
+                // 분석할 데이터 준비
+                let analysisData2025, analysisData2024;
+                const currentCategory = selectedCategoryDetail || selectedCategory;
+                
+                if (currentCategory && currentCategory !== 'all') {
+                  analysisData2025 = brandFilteredData.filter(d => d.대분류 === currentCategory && d.년월.startsWith('2025'));
+                  analysisData2024 = brandFilteredData.filter(d => d.대분류 === currentCategory && d.년월.startsWith('2024'));
+                } else {
+                  analysisData2025 = brandFilteredData.filter(d => d.년월.startsWith('2025'));
+                  analysisData2024 = brandFilteredData.filter(d => d.년월.startsWith('2024'));
+                }
+                
+                // 코스트센터별 비용 계산
+                const costCenterData2025 = analysisData2025.reduce((acc: any, d) => {
+                  acc[d.본부] = (acc[d.본부] || 0) + d.금액;
+                  return acc;
+                }, {});
+                
+                const costCenterData2024 = analysisData2024.reduce((acc: any, d) => {
+                  acc[d.본부] = (acc[d.본부] || 0) + d.금액;
+                  return acc;
+                }, {});
+                
+                const costCenters = Array.from(new Set([
+                  ...Object.keys(costCenterData2025),
+                  ...Object.keys(costCenterData2024)
+                ])).filter(b => b && b !== 'nan');
+                
+                // 최고/최저 비용 코스트센터 찾기
+                const costCenterStats = costCenters.map(center => ({
+                  name: center,
+                  cost2025: costCenterData2025[center] || 0,
+                  cost2024: costCenterData2024[center] || 0,
+                })).filter(stat => stat.cost2025 > 0);
+                
+                const maxCenter = costCenterStats.reduce((max, curr) => 
+                  curr.cost2025 > max.cost2025 ? curr : max, costCenterStats[0] || { name: '', cost2025: 0, cost2024: 0 }
+                );
+                
+                const minCenter = costCenterStats.reduce((min, curr) => 
+                  curr.cost2025 > 0 && (min.cost2025 === 0 || curr.cost2025 < min.cost2025) ? curr : min, 
+                  costCenterStats[0] || { name: '', cost2025: 0, cost2024: 0 }
+                );
+                
+                // 총 비용 계산
+                const total2025 = analysisData2025.reduce((sum, d) => sum + d.금액, 0);
+                const total2024 = analysisData2024.reduce((sum, d) => sum + d.금액, 0);
+                const yoyPercent = total2024 > 0 ? ((total2025 - total2024) / total2024 * 100).toFixed(1) : '0';
+                const yoyTrend = total2025 > total2024 ? '증가' : total2025 < total2024 ? '감소' : '유지';
+                
+                // 비중 계산
+                const maxCenterShare = total2025 > 0 ? ((maxCenter.cost2025 / total2025) * 100).toFixed(1) : '0';
+                
+                const insightKey = `cost-center-${currentCategory === 'all' ? 'all' : currentCategory}`;
+                
+                return (
+                  <div className="bg-gradient-to-br from-green-50 to-teal-50 rounded-xl p-6 border border-green-200/50 relative">
+                    <div className="absolute top-4 right-4">
+                      {editingBox === insightKey ? (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => saveBoxInsights(insightKey)}
+                            className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
+                            title="저장"
+                          >
+                            <Save className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={cancelEditingBox}
+                            className="p-1.5 text-slate-500 hover:bg-slate-100 rounded transition-colors"
+                            title="취소"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => startEditingBox(insightKey)}
+                          className="p-1.5 text-slate-500 hover:bg-slate-100 rounded transition-colors"
+                          title="편집"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
+                        <Brain className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1 pr-8">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="text-lg font-bold text-slate-800">
+                            {selectedCategoryDetail 
+                              ? `${selectedCategoryDetail} AI분석` 
+                              : selectedCategory !== 'all' 
+                                ? `${selectedCategory} AI분석`
+                                : '코스트센터별 비용 AI분석'}
+                          </h3>
+                          <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                            AI
+                          </span>
+                        </div>
+                        <div className="space-y-3 text-sm text-slate-700">
+                          <EditableInsight
+                            boxKey={insightKey}
+                            type="trend"
+                            defaultText={`${currentCategory !== 'all' ? `${currentCategory}의 ` : '전체 '}2025년 총 비용은 ${formatCurrency(total2025)}이며, 전년 대비 ${yoyTrend} 추세입니다 (${Math.abs(parseFloat(yoyPercent))}% 변화). ${total2025 > total2024 ? ' 비용 관리가 필요한 시점입니다.' : ' 비용 절감 노력이 효과를 보이고 있습니다.'}`}
+                            label="비용 추이"
+                            icon={TrendingUp}
+                            iconColor="text-green-600"
+                          />
+                          <EditableInsight
+                            boxKey={insightKey}
+                            type="analysis"
+                            defaultText={maxCenter && maxCenter.cost2025 > 0 ? `${maxCenter.name}이(가) 가장 높은 비용(${formatCurrency(maxCenter.cost2025)}, 전체의 ${maxCenterShare}%)을 차지하고 있습니다. ${maxCenter.cost2024 > 0 ? ` 전년 대비 ${maxCenter.cost2025 > maxCenter.cost2024 ? '증가' : '감소'} 추세입니다.` : ''} ${minCenter && minCenter.name !== maxCenter.name && minCenter.cost2025 > 0 ? `${minCenter.name}과 비교하여 ${formatCurrency(maxCenter.cost2025 - minCenter.cost2025)}의 차이가 있습니다.` : ''}` : '분석할 데이터가 없습니다.'}
+                            label="코스트센터 분석"
+                            icon={Users}
+                            iconColor="text-teal-600"
+                          />
+                          <EditableInsight
+                            boxKey={insightKey}
+                            type="insight"
+                            defaultText={maxCenter && maxCenter.cost2025 > 0 ? `${maxCenter.name}의 비용이 전체의 ${maxCenterShare}%를 차지하므로, 이 코스트센터의 비용 구조를 상세히 분석하여 최적화 기회를 찾는 것을 권장합니다. ${parseFloat(maxCenterShare) > 30 ? ' 높은 비중을 차지하는 만큼 작은 개선도 큰 효과를 가져올 수 있습니다.' : ''}` : '비용 데이터를 분석할 수 없습니다.'}
+                            label="인사이트"
+                            icon={Brain}
+                            iconColor="text-blue-600"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -1341,7 +1721,7 @@ export default function BrandDashboard({
           <div className="bg-white rounded-2xl p-6 md:p-8 border border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-lg md:text-xl font-bold text-slate-800 mb-2">비용 계정 상세 분석 (계층형)</h2>
+                <h2 className="text-lg md:text-xl font-bold text-slate-800 mb-2">비용 계정 상세 분석</h2>
                 <p className="text-sm text-slate-600">
                   {selectedMonth !== 'all' 
                     ? `2025년 ${parseInt(selectedMonth.substring(4))}월 기준`
@@ -1514,6 +1894,139 @@ export default function BrandDashboard({
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* 비용 계정 AI 인사이트 분석 박스 */}
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              {(() => {
+                if (drilldownData.length === 0) {
+                  return (
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200/50">
+                      <p className="text-slate-600">분석할 데이터가 없습니다.</p>
+                    </div>
+                  );
+                }
+
+                // 총합계 계산
+                const total2025Monthly = drilldownData.reduce((sum, row) => sum + row.cost2025Monthly, 0);
+                const total2024Monthly = drilldownData.reduce((sum, row) => sum + row.cost2024Monthly, 0);
+                const total2025YTD = drilldownData.reduce((sum, row) => sum + row.cost2025YTD, 0);
+                const total2024YTD = drilldownData.reduce((sum, row) => sum + row.cost2024YTD, 0);
+                
+                // 최고 증가 항목 (YTD 기준)
+                const maxIncrease = drilldownData.reduce((max, curr) => {
+                  const currIncrease = curr.cost2025YTD - curr.cost2024YTD;
+                  const maxIncrease = max.cost2025YTD - max.cost2024YTD;
+                  return currIncrease > maxIncrease ? curr : max;
+                }, drilldownData[0]);
+                
+                // 최고 감소 항목 (YTD 기준)
+                const maxDecrease = drilldownData.reduce((min, curr) => {
+                  const currDecrease = curr.cost2025YTD - curr.cost2024YTD;
+                  const minDecrease = min.cost2025YTD - min.cost2024YTD;
+                  return currDecrease < minDecrease ? curr : min;
+                }, drilldownData[0]);
+                
+                // 최고 비용 항목 (YTD 기준)
+                const maxCost = drilldownData.reduce((max, curr) => 
+                  curr.cost2025YTD > max.cost2025YTD ? curr : max, drilldownData[0]
+                );
+                
+                // YTD 증가율 계산
+                const ytdIncrease = total2024YTD > 0 
+                  ? ((total2025YTD - total2024YTD) / total2024YTD * 100).toFixed(1) 
+                  : '0';
+                
+                // 월간 증가율 계산
+                const monthlyIncrease = total2024Monthly > 0 
+                  ? ((total2025Monthly - total2024Monthly) / total2024Monthly * 100).toFixed(1) 
+                  : '0';
+                
+                // 최고 비용 항목 비중
+                const maxCostShare = total2025YTD > 0 
+                  ? ((maxCost.cost2025YTD / total2025YTD) * 100).toFixed(1) 
+                  : '0';
+
+                const insightKey = `account-insight-${selectedMonth}`;
+                const maxIncreaseAmount = maxIncrease.cost2025YTD - maxIncrease.cost2024YTD;
+                const maxDecreaseAmount = maxDecrease.cost2025YTD - maxDecrease.cost2024YTD;
+
+                return (
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200/50 relative">
+                    <div className="absolute top-4 right-4">
+                      {editingBox === insightKey ? (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => saveBoxInsights(insightKey)}
+                            className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
+                            title="저장"
+                          >
+                            <Save className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={cancelEditingBox}
+                            className="p-1.5 text-slate-500 hover:bg-slate-100 rounded transition-colors"
+                            title="취소"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => startEditingBox(insightKey)}
+                          className="p-1.5 text-slate-500 hover:bg-slate-100 rounded transition-colors"
+                          title="편집"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
+                        <Sparkles className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1 pr-8">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="text-lg font-bold text-slate-800">비용 계정 AI 인사이트 분석</h3>
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+                            AI
+                          </span>
+                        </div>
+                        <div className="space-y-3 text-sm text-slate-700">
+                          <EditableInsight
+                            boxKey={insightKey}
+                            type="trend"
+                            defaultText={`${selectedMonth !== 'all' ? `2025년 ${parseInt(selectedMonth.substring(4))}월 비용은 ${formatCurrency(total2025Monthly)}이며, 전년 동월 대비 ${parseFloat(monthlyIncrease) >= 0 ? '증가' : '감소'} 추세입니다 (${Math.abs(parseFloat(monthlyIncrease))}% 변화). ` : ''}YTD 누적 비용은 ${formatCurrency(total2025YTD)}이며, 전년 대비 ${parseFloat(ytdIncrease) >= 0 ? '증가' : '감소'} 추세입니다 (${Math.abs(parseFloat(ytdIncrease))}% 변화).${parseFloat(ytdIncrease) > 10 ? ' 비용 증가율이 높아 주의가 필요합니다.' : ''}`}
+                            label="전체 비용 추이"
+                            icon={TrendingUp}
+                            iconColor="text-blue-600"
+                          />
+                          <EditableInsight
+                            boxKey={insightKey}
+                            type="costItem"
+                            defaultText={`${maxCost.name}이(가) YTD 기준으로 가장 높은 비용(${formatCurrency(maxCost.cost2025YTD)}, 전체의 ${maxCostShare}%)을 차지하고 있습니다. ${maxCost.yoyYTD > 10 ? ` 전년 대비 ${maxCost.yoyYTD.toFixed(1)}% 증가하여 집중적인 관리가 필요합니다.` : ''}${maxCost.yoyYTD < -10 ? ` 전년 대비 ${Math.abs(maxCost.yoyYTD).toFixed(1)}% 감소하여 긍정적인 변화입니다.` : ''}`}
+                            label="주요 비용 항목"
+                            icon={DollarSign}
+                            iconColor="text-indigo-600"
+                          />
+                          <EditableInsight
+                            boxKey={insightKey}
+                            type="insight"
+                            defaultText={maxIncreaseAmount > 0 && maxDecreaseAmount < 0 
+                              ? `${maxIncrease.name}이(가) 전년 대비 가장 큰 증가(${formatCurrency(maxIncreaseAmount)})를 보이고 있어, 비용 구조 재검토가 필요합니다. 반면 ${maxDecrease.name}은(는) ${formatCurrency(Math.abs(maxDecreaseAmount))} 감소하여 효율 개선 효과가 있었습니다.${parseFloat(maxCostShare) > 30 ? ' 최고 비용 항목이 전체의 30% 이상을 차지하므로, 이 항목의 최적화가 전체 비용 절감에 큰 영향을 미칠 수 있습니다.' : ''}`
+                              : maxIncreaseAmount > 0
+                                ? `${maxIncrease.name}이(가) 전년 대비 가장 큰 증가(${formatCurrency(maxIncreaseAmount)})를 보이고 있어, 집중적인 관리가 필요합니다. 비용 증가 원인을 분석하여 효율적인 대응 방안을 수립하는 것을 권장합니다.`
+                                : '대부분의 항목에서 비용이 감소 또는 유지되고 있어 긍정적인 추세입니다. 지속적인 모니터링을 통해 비용 효율성을 유지하시기 바랍니다.'}
+                            label="인사이트"
+                            icon={Brain}
+                            iconColor="text-purple-600"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

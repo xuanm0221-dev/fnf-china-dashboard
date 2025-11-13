@@ -118,13 +118,27 @@ export default function Home() {
       const monthNum = parseInt(month.substring(4));
 
       // 비용 데이터 로드
-      const costResponse = await fetch(`/data/cost_${filePrefix}_${month}.csv`);
+      const costUrl = `/data/cost_${filePrefix}_${month}.csv`;
+      const costResponse = await fetch(costUrl);
       if (!costResponse.ok) {
+        console.error(`Failed to load ${costUrl}: ${costResponse.status} ${costResponse.statusText}`);
         return getDefaultStats();
       }
 
       const csvText = await costResponse.text();
-      const rows = csvText.split('\n').slice(1); // 헤더 제거
+      if (!csvText || csvText.trim().length === 0) {
+        console.error(`Empty CSV file: ${costUrl}`);
+        return getDefaultStats();
+      }
+
+      const rows = csvText.split('\n').filter(row => row.trim().length > 0);
+      if (rows.length <= 1) {
+        console.error(`No data rows in CSV: ${costUrl}`);
+        return getDefaultStats();
+      }
+
+      // 헤더 제거
+      const dataRows = rows.slice(1);
 
       let totalCost = 0;
       const costDetails: { [key: string]: number } = {
@@ -134,7 +148,7 @@ export default function Home() {
       };
 
       // CSV 파싱 (큰따옴표 처리)
-      for (const row of rows) {
+      for (const row of dataRows) {
         if (!row.trim()) continue;
         
         const cols: string[] = [];
@@ -154,18 +168,23 @@ export default function Home() {
         }
         if (current) cols.push(current);
 
+        // 최소 8개 컬럼 필요 (브랜드,본부,팀,대분류,중분류,소분류,계정과목,금액)
         if (cols.length >= 8) {
-          const amount = parseFloat(cols[7]?.replace(/[,"]/g, '') || '0') || 0;
-          totalCost += amount;
+          const amountStr = cols[7]?.replace(/[,"]/g, '').trim() || '0';
+          const amount = parseFloat(amountStr) || 0;
+          
+          if (!isNaN(amount) && amount > 0) {
+            totalCost += amount;
 
-          // 대분류별 집계
-          const 대분류 = cols[3]?.replace(/"/g, '').trim() || '';
-          if (대분류 === '인건비') {
-            costDetails.인건비 += amount;
-          } else if (대분류 === '광고비' || 대분류 === '광고선전비') {
-            costDetails.광고선전비 += amount;
-          } else {
-            costDetails.기타영업비 += amount;
+            // 대분류별 집계
+            const 대분류 = cols[3]?.replace(/"/g, '').trim() || '';
+            if (대분류 === '인건비') {
+              costDetails.인건비 += amount;
+            } else if (대분류 === '광고비' || 대분류 === '광고선전비') {
+              costDetails.광고선전비 += amount;
+            } else {
+              costDetails.기타영업비 += amount;
+            }
           }
         }
       }
@@ -396,7 +415,7 @@ export default function Home() {
       // 인당비용 계산 (총비용(K) / 인원수, 소숫점 없이)
       const costPerPerson = employees > 0 ? Math.round((totalCost / 1000) / employees) : 0;
 
-      return {
+      const stats = {
         totalCost: Math.round(totalCost),
         employees,
         revenue: Math.round(revenue),
@@ -410,8 +429,18 @@ export default function Home() {
           기타영업비: Math.round(costDetails.기타영업비 / 1000),
         },
       };
+
+      // 디버깅: 데이터 로드 확인
+      console.log(`✅ Loaded stats for ${brandId} (${month}):`, {
+        totalCost: stats.totalCost,
+        employees: stats.employees,
+        revenue: stats.revenue,
+        rowsProcessed: dataRows.length,
+      });
+
+      return stats;
     } catch (error) {
-      console.error(`Error loading stats for ${brandId}:`, error);
+      console.error(`❌ Error loading stats for ${brandId} (${month}):`, error);
       return getDefaultStats();
     }
   };
