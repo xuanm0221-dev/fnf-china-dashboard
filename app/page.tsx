@@ -503,15 +503,21 @@ export default function Home() {
     // K 단위 (천 단위)로 변환
     const valueInK = num / 1000;
     
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('ko-KR', {
       style: 'decimal',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(valueInK);
   };
 
+  const formatNumberWithComma = (num: number) => {
+    if (num === 0 || !num) return '0';
+    // 천단위 콤마 추가
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
+
   const formatPercent = (num: number, decimals: number = 1) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('ko-KR', {
       style: 'decimal',
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
@@ -631,7 +637,7 @@ export default function Home() {
                   <div className="text-center">
                     <div className="text-xs text-slate-500 mb-1 font-medium">인원수</div>
                     <div className="text-lg font-bold text-slate-800">
-                      {brand.stats.employees} <span className="text-xs font-normal text-slate-500">명</span>
+                      {formatNumberWithComma(brand.stats.employees)} <span className="text-xs font-normal text-slate-500">명</span>
                     </div>
                   </div>
                   <div className="text-center">
@@ -657,7 +663,7 @@ export default function Home() {
                   <div className="text-center">
                     <div className="text-xs text-slate-500 mb-1 font-medium">인당비용</div>
                     <div className="text-lg font-bold text-purple-600">
-                      {brand.stats.costPerPerson}K
+                      {formatNumberWithComma(brand.stats.costPerPerson)}K
                     </div>
                   </div>
                 </div>
@@ -680,7 +686,7 @@ export default function Home() {
                           displayItems.push(
                             <div key={costArray[i].key} className="flex justify-between text-xs">
                               <span className="text-slate-600">{costArray[i].key}</span>
-                              <span className="font-semibold text-slate-800">{costArray[i].value}K</span>
+                              <span className="font-semibold text-slate-800">{formatNumberWithComma(costArray[i].value)}K</span>
                             </div>
                           );
                         } else {

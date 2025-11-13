@@ -16,6 +16,7 @@ import {
   Legend,
   ResponsiveContainer,
   ComposedChart,
+  ReferenceLine,
 } from 'recharts';
 import { ArrowLeft, TrendingUp, TrendingDown, Calendar, DollarSign, Edit, ChevronRight, ChevronDown, Users, Sparkles, Brain, Save, X } from 'lucide-react';
 import Link from 'next/link';
@@ -472,16 +473,16 @@ export default function BrandDashboard({
                 
                 if (amount !== 0) {
                   allCsvData.push({
-                    브랜드: cols[0],
-                    본부: cols[1],
-                    팀: cols[2],
-                    대분류: cols[3],
-                    중분류: cols[4].replace(/"/g, ''), // 큰따옴표 제거
-                    소분류: cols[5],
-                    계정과목: cols[6],
+                    브랜드: cols[0]?.trim() || '',
+                    본부: cols[1]?.trim() || '',
+                    팀: cols[2]?.trim() || '',
+                    대분류: cols[3]?.trim() || '',
+                    중분류: cols[4]?.replace(/"/g, '').trim() || '', // 큰따옴표 제거 및 공백 제거
+                    소분류: cols[5]?.trim() || '', // 공백 제거
+                    계정과목: cols[6]?.trim() || '',
                     금액: amount,
-                    년월: cols[8],
-                    비고: cols[9] || ''
+                    년월: cols[8]?.trim() || '',
+                    비고: (cols[9] || '').trim()
                   });
                 }
               }
@@ -546,23 +547,52 @@ export default function BrandDashboard({
   const uniqueMonths = Array.from(new Set(filteredData.map((d) => d.년월)));
 
   // 월별 데이터 (대분류별 포함) - 브랜드 필터 적용
-  const categories = Array.from(new Set(brandFilteredData.map((d) => d.대분류))).filter(c => c && c !== 'nan').sort();
+  const allCategories = Array.from(new Set(brandFilteredData.map((d) => d.대분류))).filter(c => c && c !== 'nan');
+  
+  // 대분류 정렬 순서 정의
+  const categoryOrder = [
+    '광고비', 
+    '인건비', 
+    '복리후생비', 
+    '출장비', 
+    '수주회', 
+    '차량유지비', 
+    '임차료', 
+    '감가상각비', 
+    '감가상각', 
+    '세금과공과', 
+    '기타'
+  ];
+  
+  // 지정된 순서대로 정렬하고, 순서에 없는 항목은 뒤에 추가
+  const categories = [
+    ...categoryOrder.filter(cat => allCategories.includes(cat)),
+    ...allCategories.filter(cat => !categoryOrder.includes(cat)).sort()
+  ];
   
   // 대분류별 색상 매핑 (제공된 색상 팔레트 - 사용자 지정 + 나머지 배합)
   const categoryColors: { [key: string]: string } = {
+    // 유지할 색상 (요청사항)
+    '광고비': '#C1B2FF', // 연보라
     '인건비': '#87C5FF', // 하늘색
-    '복리후생비': '#87E4C6', // 민트 (지정)
-    '광고비': '#C1B2FF', // 연보라 (지정)
-    '수주회': '#F7DB6C', // 옐로우 (노란색)
+    '복리후생비': '#87E4C6', // 민트
+    '수주회': '#F7DB6C', // 옐로우
     '출장비': '#F5A84C', // 오렌지
-    '감가상각비': '#F7A7C9', // 핑크 (분홍색)
+    
+    // 새로 지정할 색상 (겹치지 않게)
+    '차량유지비': '#87CEEB', // 스카이 블루 (인건비와 구분되는 하늘색)
+    '임차료': '#FFF9C4', // 파스텔 노랑 (수주회와 구분되는 부드러운 노랑)
+    '감가상각비': '#7C3AED', // 짙은 보라 (다른 색상과 구분)
+    '감가상각': '#7C3AED', // 짙은 보라 (감가상각비와 동일)
+    '세금과공과': '#FFD1DC', // 파스텔 분홍 (다른 색상과 구분)
     '기타': '#A3F27A', // 라이트그린
-    '지급수수료': '#87C5FF', // 하늘색
-    '광고선전비': '#F7A7C9', // 핑크
-    '사가상각비(시설)': '#87C5FF', // 하늘색
-    'VMD/매장부수대': '#F5A84C', // 오렌지
-    '샘플비(제작/구입)': '#A3F27A', // 라이트그린
-    '임차료': '#F5A84C', // 오렌지
+    '지급수수료': '#F38181', // 코랄
+    
+    // 기타 항목들 (겹치지 않게)
+    '광고선전비': '#C1B2FF', // 연보라 (광고비와 동일)
+    '사가상각비(시설)': '#7C3AED', // 짙은 보라 (감가상각비와 동일)
+    'VMD/매장부수대': '#AA96DA', // 라벤더
+    '샘플비(제작/구입)': '#FCBAD3', // 라이트핑크
   };
   
   // initialMonth가 있으면 해당 월까지만 필터링
@@ -682,8 +712,8 @@ export default function BrandDashboard({
       }
       const prev2024Cost = prev2024Data.reduce((sum, row) => sum + row.금액, 0);
       
-      // YOY 증감률 계산
-      const yoyRate = prev2024Cost > 0 ? ((current2025Cost - prev2024Cost) / prev2024Cost) * 100 : 0;
+      // YOY 계산 (당년/전년 × 100)
+      const yoyRate = prev2024Cost > 0 ? (current2025Cost / prev2024Cost) * 100 : 0;
       
       return {
         month: currentMonth, // MM
@@ -767,23 +797,47 @@ export default function BrandDashboard({
     const yoyYTD = cost2024YTD > 0 ? ((diffYTD / cost2024YTD) * 100) : 0;
     
     // 소분류 데이터
-    const 소분류들 = Array.from(new Set([...data2025Monthly.map(d => d.소분류), ...data2025YTD.map(d => d.소분류)])).filter(c => c && c !== 'nan');
+    const 소분류들 = Array.from(new Set([...data2025Monthly.map(d => d.소분류), ...data2025YTD.map(d => d.소분류)])).filter(c => c && c !== 'nan' && c.trim() !== '');
+    
+    // 디버깅: 대분류별 소분류 확인
+    if (대분류 === '감가상각비' || 대분류 === '지급수수료') {
+      console.log(`[${대분류}] 소분류 목록:`, 소분류들);
+      console.log(`[${대분류}] data2025Monthly 샘플:`, data2025Monthly.slice(0, 3).map(d => ({ 소분류: d.소분류, 금액: d.금액 })));
+    }
+    
     const 소분류Data = 소분류들.map((소분류) => {
-      // 당월
-      const detail2025Monthly = data2025Monthly.filter(d => d.소분류 === 소분류);
+      // 당월 - 소분류별로 필터링
+      const detail2025Monthly = data2025Monthly.filter(d => d.소분류 === 소분류 && d.소분류 && d.소분류.trim() !== '');
       const detailCost2025Monthly = detail2025Monthly.reduce((sum, row) => sum + row.금액, 0);
       
-      const detail2024Monthly = data2024Monthly.filter(d => d.소분류 === 소분류);
+      const detail2024Monthly = data2024Monthly.filter(d => d.소분류 === 소분류 && d.소분류 && d.소분류.trim() !== '');
       const detailCost2024Monthly = detail2024Monthly.reduce((sum, row) => sum + row.금액, 0);
+      
+      // 디버깅: 소분류별 값 확인
+      if ((대분류 === '감가상각비' || 대분류 === '지급수수료') && 소분류들.length > 0) {
+        console.log(`[${대분류} > ${소분류}] detailCost2025Monthly:`, detailCost2025Monthly, 'detailCost2024Monthly:', detailCost2024Monthly);
+      }
       
       const detailDiffMonthly = detailCost2025Monthly - detailCost2024Monthly;
       const detailYoyMonthly = detailCost2024Monthly > 0 ? ((detailDiffMonthly / detailCost2024Monthly) * 100) : 0;
       
-      // YTD
-      const detail2025YTD = brandFilteredData.filter(d => d.대분류 === 대분류 && d.소분류 === 소분류 && accumulatedMonths2025.includes(d.년월));
+      // YTD - 소분류별로 필터링
+      const detail2025YTD = brandFilteredData.filter(d => 
+        d.대분류 === 대분류 && 
+        d.소분류 === 소분류 && 
+        d.소분류 && 
+        d.소분류.trim() !== '' &&
+        accumulatedMonths2025.includes(d.년월)
+      );
       const detailCost2025YTD = detail2025YTD.reduce((sum, row) => sum + row.금액, 0);
       
-      const detail2024YTD = brandFilteredData.filter(d => d.대분류 === 대분류 && d.소분류 === 소분류 && accumulatedMonths2024.includes(d.년월));
+      const detail2024YTD = brandFilteredData.filter(d => 
+        d.대분류 === 대분류 && 
+        d.소분류 === 소분류 && 
+        d.소분류 && 
+        d.소분류.trim() !== '' &&
+        accumulatedMonths2024.includes(d.년월)
+      );
       const detailCost2024YTD = detail2024YTD.reduce((sum, row) => sum + row.금액, 0);
       
       const detailDiffYTD = detailCost2025YTD - detailCost2024YTD;
@@ -791,10 +845,10 @@ export default function BrandDashboard({
       
       return {
         name: 소분류,
-        cost2025Monthly,
-        cost2024Monthly,
-        diffMonthly,
-        yoyMonthly,
+        cost2025Monthly: detailCost2025Monthly,
+        cost2024Monthly: detailCost2024Monthly,
+        diffMonthly: detailDiffMonthly,
+        yoyMonthly: detailYoyMonthly,
         cost2025YTD: detailCost2025YTD,
         cost2024YTD: detailCost2024YTD,
         diffYTD: detailDiffYTD,
@@ -1082,6 +1136,7 @@ export default function BrandDashboard({
                   stroke="#475569"
                   style={{ fontSize: '12px', fontWeight: 500 }}
                   tickFormatter={(value) => `${formatNumber(value)}%`}
+                  domain={[0, 'dataMax']}
                 />
                 <Tooltip
                   cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }}
@@ -1126,13 +1181,13 @@ export default function BrandDashboard({
                             </div>
                             {yoyValue !== null && (
                               <div className="mt-2">
-                                <div className="text-xs text-slate-500">전년</div>
+                                <div className="text-xs text-slate-500">YOY (당년/전년)</div>
                                   <div 
                                   className={`text-base font-semibold ${
                                     Number(yoyValue) >= 100 ? 'text-red-600' : 'text-green-600'
                                   }`}
                                 >
-                                  YOY: {formatNumber(Number(yoyValue))}%
+                                  {formatNumber(Number(yoyValue))}%
                                 </div>
                               </div>
                             )}
@@ -1198,6 +1253,15 @@ export default function BrandDashboard({
                     name={selectedCategory}
                   />
                 )}
+                {/* 100% 기준선 */}
+                <ReferenceLine 
+                  yAxisId="right"
+                  y={100} 
+                  stroke="#94a3b8" 
+                  strokeDasharray="3 3" 
+                  strokeWidth={1}
+                  label={{ value: "100%", position: "right", fill: "#94a3b8", fontSize: 11 }}
+                />
                 {/* YOY 꺾은선 */}
                 <Line
                   yAxisId="right"
@@ -1326,9 +1390,9 @@ export default function BrandDashboard({
 
           {/* 대분류별 상세 분석 (소분류 + 코스트센터) */}
           <div className="bg-white rounded-2xl p-6 md:p-8 border border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">
+                <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-1">
                   {selectedCategoryDetail ? `${selectedCategoryDetail} > 소분류` : `${brandName} 코스트센터별 비용 상세`}
                 </h2>
                 <p className="text-sm text-slate-500">소분류별 비용 및 코스트센터별 (클릭하여 계정별 보기)</p>
@@ -1343,11 +1407,11 @@ export default function BrandDashboard({
               )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* 왼쪽: 계정별 (대분류 또는 소분류) */}
               <div>
-                <h3 className="text-md font-bold text-slate-700 mb-4">계정별</h3>
-                <ResponsiveContainer width="100%" height={400}>
+                <h3 className="text-md font-bold text-slate-700 mb-2">계정별</h3>
+                <ResponsiveContainer width="100%" height={350}>
                   <BarChart 
                     data={(() => {
                       if (selectedCategoryDetail) {
@@ -1392,7 +1456,8 @@ export default function BrandDashboard({
                       type="number" 
                       stroke="#475569" 
                       style={{ fontSize: '12px', fontWeight: 500 }}
-                      tickFormatter={(value) => formatCurrency(value)} 
+                      tickFormatter={(value) => formatCurrency(value)}
+                      domain={[0, 'auto']}
                     />
                     <YAxis 
                       dataKey="name" 
@@ -1452,11 +1517,11 @@ export default function BrandDashboard({
                       }}
                     />
                     <Legend 
-                      wrapperStyle={{ paddingTop: '20px' }}
+                      wrapperStyle={{ paddingTop: '12px' }}
                       iconType="circle"
-                      iconSize={10}
+                      iconSize={8}
                       formatter={(value) => (
-                        <span style={{ color: '#475569', fontWeight: 500, fontSize: '13px' }}>
+                        <span style={{ color: '#475569', fontWeight: 500, fontSize: '12px' }}>
                           {value}
                         </span>
                       )}
@@ -1469,47 +1534,60 @@ export default function BrandDashboard({
               
               {/* 오른쪽: 코스트센터별 */}
               <div>
-                <h3 className="text-md font-bold text-slate-700 mb-4">
+                <h3 className="text-md font-bold text-slate-700 mb-2">
                   {selectedCategoryDetail ? `${selectedCategoryDetail} > 코스트센터별` : '인건비 > 코스트센터별'}
                 </h3>
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart 
-                    data={(() => {
-                      let data2025, data2024;
-                      if (selectedCategoryDetail) {
-                        data2025 = brandFilteredData.filter(d => d.대분류 === selectedCategoryDetail && d.년월.startsWith('2025'));
-                        data2024 = brandFilteredData.filter(d => d.대분류 === selectedCategoryDetail && d.년월.startsWith('2024'));
-                      } else {
-                        // 전체 데이터
-                        data2025 = brandFilteredData.filter(d => d.년월.startsWith('2025'));
-                        data2024 = brandFilteredData.filter(d => d.년월.startsWith('2024'));
-                      }
-                      const 본부들 = Array.from(new Set([...data2025.map(d => d.본부), ...data2024.map(d => d.본부)])).filter(b => b && b !== 'nan');
-                      return 본부들.map(본부 => {
-                        const cost2025 = data2025.filter(d => d.본부 === 본부).reduce((sum, d) => sum + d.금액, 0);
-                        const cost2024 = data2024.filter(d => d.본부 === 본부).reduce((sum, d) => sum + d.금액, 0);
-                        return {
-                          name: 본부,
-                          당해: cost2025,
-                          전년: cost2024,
-                        };
-                      }).sort((a, b) => b.당해 - a.당해);
-                    })()}
-                    layout="vertical"
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis 
-                      type="number" 
-                      stroke="#475569" 
-                      style={{ fontSize: '12px', fontWeight: 500 }}
-                      tickFormatter={(value) => formatCurrency(value)} 
-                    />
+                <ResponsiveContainer width="100%" height={350}>
+                  {(() => {
+                    let data2025, data2024;
+                    if (selectedCategoryDetail) {
+                      data2025 = brandFilteredData.filter(d => d.대분류 === selectedCategoryDetail && d.년월.startsWith('2025'));
+                      data2024 = brandFilteredData.filter(d => d.대분류 === selectedCategoryDetail && d.년월.startsWith('2024'));
+                    } else {
+                      // 전체 데이터
+                      data2025 = brandFilteredData.filter(d => d.년월.startsWith('2025'));
+                      data2024 = brandFilteredData.filter(d => d.년월.startsWith('2024'));
+                    }
+                    const 본부들 = Array.from(new Set([...data2025.map(d => d.본부), ...data2024.map(d => d.본부)]))
+                      .filter(b => b && b !== 'nan' && b.trim() !== '')
+                      .filter(b => b); // 빈 값 제거
+                    const chartData = 본부들.map(본부 => {
+                      const cost2025 = Math.max(data2025.filter(d => d.본부 === 본부).reduce((sum, d) => sum + d.금액, 0), 0);
+                      const cost2024 = Math.max(data2024.filter(d => d.본부 === 본부).reduce((sum, d) => sum + d.금액, 0), 0);
+                      return {
+                        name: (본부 && 본부.trim()) || '미지정',
+                        당해: cost2025,
+                        전년: cost2024,
+                      };
+                    }).filter(item => item.당해 > 0 || item.전년 > 0) // 값이 있는 항목만 표시
+                      .sort((a, b) => b.당해 - a.당해);
+                    
+                    // 최대값 계산 (0부터 시작하도록)
+                    const maxValue = chartData.length > 0 
+                      ? Math.max(...chartData.map(item => Math.max(item.당해, item.전년)), 0)
+                      : 0;
+                    const xAxisDomain = maxValue > 0 ? [0, maxValue * 1.1] : [0, 1000]; // 10% 여유 공간 추가
+                    
+                    return (
+                      <BarChart 
+                        data={chartData}
+                        layout="vertical"
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis 
+                          type="number" 
+                          stroke="#475569" 
+                          style={{ fontSize: '12px', fontWeight: 500 }}
+                          tickFormatter={(value) => formatCurrency(value)}
+                          domain={xAxisDomain}
+                        />
                     <YAxis 
                       dataKey="name" 
                       type="category" 
                       stroke="#475569" 
-                      width={120} 
+                      width={150} 
                       style={{ fontSize: '11px', fontWeight: 500 }} 
+                      tick={{ fill: '#475569', fontSize: 11, fontWeight: 500 }}
                     />
                     <Tooltip 
                       cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }}
@@ -1562,24 +1640,26 @@ export default function BrandDashboard({
                       }}
                     />
                     <Legend 
-                      wrapperStyle={{ paddingTop: '20px' }}
+                      wrapperStyle={{ paddingTop: '12px' }}
                       iconType="circle"
-                      iconSize={10}
+                      iconSize={8}
                       formatter={(value) => (
-                        <span style={{ color: '#475569', fontWeight: 500, fontSize: '13px' }}>
+                        <span style={{ color: '#475569', fontWeight: 500, fontSize: '12px' }}>
                           {value}
                         </span>
                       )}
                     />
-                    <Bar dataKey="당해" fill="#F7A7C9" />
-                    <Bar dataKey="전년" fill="#87C5FF" />
-                  </BarChart>
+                        <Bar dataKey="당해" fill="#F7A7C9" />
+                        <Bar dataKey="전년" fill="#87C5FF" />
+                      </BarChart>
+                    );
+                  })()}
                 </ResponsiveContainer>
               </div>
             </div>
 
             {/* 코스트센터별 비용 AI분석 박스 */}
-            <div className="mt-6 pt-6 border-t border-slate-200">
+            <div className="mt-4 pt-4 border-t border-slate-200">
               {(() => {
                 // 분석할 데이터 준비
                 let analysisData2025, analysisData2024;
